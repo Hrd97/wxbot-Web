@@ -1,125 +1,115 @@
+import functools
+
 from flask import Blueprint
 from flask import flash
 from flask import g
 from flask import redirect
 from flask import render_template
 from flask import request
+from flask import session
 from flask import url_for
-from werkzeug.exceptions import abort
-
-from flaskr.auth import login_required
-from flaskr.db import get_db
-
-bp = Blueprint("blog", __name__)
-
-
-@bp.route("/")
-def index():
-    """Show all the posts, most recent first."""
-    db = get_db()
-    posts = db.execute(
-        "SELECT p.id, title, body, created, author_id, username"
-        " FROM post p JOIN user u ON p.author_id = u.id"
-        " ORDER BY created DESC"
-    ).fetchall()
-    return render_template("blog/index.html", posts=posts)
+from werkzeug.security import check_password_hash
+from werkzeug.security import generate_password_hash
+from mod.models import Users
+from database import get_db
+from sqlalchemy import and_, or_
 
 
-def get_post(id, check_author=True):
-    """Get a post and its author by id.
+bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-    Checks that the id exists and optionally that the current user is
-    the author.
+def login_required(view):
+    """View decorator that redirects anonymous users to the login page."""
+    @functools.wraps(view)
+    def wrapped_view(**kwargs):
+        if g.user is None:
+            return redirect(url_for("auth.login"))
 
-    :param id: id of post to get
-    :param check_author: require the current user to be the author
-    :return: the post with author information
-    :raise 404: if a post with the given id doesn't exist
-    :raise 403: if the current user isn't the author
+        return view(**kwargs)
+
+    return wrapped_view
+
+
+@bp.before_app_request
+def load_logged_in_user():
+    """If a user id is stored in the session, load the user object from
+    the database into ``g.user``."""
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        g.user = None
+    else:
+        g.user = Users.query.filter(Users.id == user_id).first()
+
+
+
+@bp.route("/register", methods=("GET", "POST"))
+def register():
+    """Register a new user.
+
+    Validates that the username is not already taken. Hashes the
+    password for security.
     """
-    post = (
-        get_db()
-        .execute(
-            "SELECT p.id, title, body, created, author_id, username"
-            " FROM post p JOIN user u ON p.author_id = u.id"
-            " WHERE p.id = ?",
-            (id,),
-        )
-        .fetchone()
-    )
-
-    if post is None:
-        abort(404, "Post id {0} doesn't exist.".format(id))
-
-    if check_author and post["author_id"] != g.user["id"]:
-        abort(403)
-
-    return post
-
-
-@bp.route("/create", methods=("GET", "POST"))
-@login_required
-def create():
-    """Create a new post for the current user."""
     if request.method == "POST":
-        title = request.form["title"]
-        body = request.form["body"]
+        phoneNumber = request.form["PhoneNumber"]
+        password = request.form["password"]
+        database = get_db()
         error = None
 
-        if not title:
-            error = "Title is required."
+        if not phoneNumber:
+            error = "phoneNumber is required."
+        elif not password:
+            error = "Password is required."
+        elif (
+            # db.execute("SELECT id FROM user WHERE username = ?", (username,)).fetchone()
+            # is not None
+            Users.query.filter(Users.phonenum == phoneNumber).first() is not None
+        ):
+            error = "User {0} is already registered.".format(phoneNumber)
 
-        if error is not None:
-            flash(error)
-        else:
-            db = get_db()
-            db.execute(
-                "INSERT INTO post (title, body, author_id) VALUES (?, ?, ?)",
-                (title, body, g.user["id"]),
-            )
-            db.commit()
-            return redirect(url_for("blog.index"))
+        if error is None:
+            # the name is available, store it in the database and go to
+            # the login page
+            # db.execute(
+            #     "INSERT INTO user (username, password) VALUES (?, ?)",
+            #     (username, generate_password_hash(password)),
+            # )
+            # db.commit()
+            database.session.add(Users(phonenum=phoneNumber, password=generate_password_hash(password)))
+            return redirect(url_for("auth.login"))
 
-    return render_template("blog/create.html")
+        flash(error)
+
+    return render_template("auth/register.html")
 
 
-@bp.route("/<int:id>/update", methods=("GET", "POST"))
-@login_required
-def update(id):
-    """Update a post if the current user is the author."""
-    post = get_post(id)
-
+@bp.route("/login", methods=("GET", "POST"))
+def login():
+    """Log in a registered user by adding the user id to the session."""
     if request.method == "POST":
-        title = request.form["title"]
-        body = request.form["body"]
+        phoneNumber = request.form["phonenum"]
+        password = request.form["password"]
+        database = get_db()
         error = None
+        user = Users.query.filter(Users.phonenum == phoneNumber).first()
 
-        if not title:
-            error = "Title is required."
+        if user is None:
+            error = "Incorrect username."
+        elif not check_password_hash(user["password"], password):
+            error = "Incorrect password."
 
-        if error is not None:
-            flash(error)
-        else:
-            db = get_db()
-            db.execute(
-                "UPDATE post SET title = ?, body = ? WHERE id = ?", (title, body, id)
-            )
-            db.commit()
-            return redirect(url_for("blog.index"))
+        if error is None:
+            # store the user id in a new session and return to the index
+            session.clear()
+            session["user_id"] = user["id"]
+            return redirect(url_for("index"))
 
-    return render_template("blog/update.html", post=post)
+        flash(error)
+
+    return render_template("auth/login.html")
 
 
-@bp.route("/<int:id>/delete", methods=("POST",))
-@login_required
-def delete(id):
-    """Delete a post.
-
-    Ensures that the post exists and that the logged in user is the
-    author of the post.
-    """
-    get_post(id)
-    db = get_db()
-    db.execute("DELETE FROM post WHERE id = ?", (id,))
-    db.commit()
-    return redirect(url_for("blog.index"))
+@bp.route("/logout")
+def logout():
+    """Clear the current session, including the stored user id."""
+    session.clear()
+    return redirect(url_for("index"))

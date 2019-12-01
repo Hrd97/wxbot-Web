@@ -1,19 +1,20 @@
 import os
 import auth
 from database import db
-from flask import Flask,render_template
+from flask import Flask, render_template, redirect, url_for
+
+
 def create_app():
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__)
     basedir = os.path.abspath(os.path.dirname(__file__))
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'test.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+    app.config['SECRET_KEY'] = 'development key'
 
     @app.route("/")
-    def hello():
-        return render_template("auth/register.html")
-       # return "Hello, World!"
+    def index():
+       return redirect(url_for("auth.login"))
 
     # register the database commands
     #from db import db
@@ -30,7 +31,7 @@ def create_app():
     # app.route, while giving the blog blueprint a url_prefix, but for
     # the tutorial the blog will be the main index
     #
-    app.add_url_rule("/", endpoint="index")
+    #app.add_url_rule("/", endpoint="index")
     #app.add_url_rule("/", endpoint="auth")
     return app
 

@@ -49,9 +49,13 @@ def register():
     Validates that the username is not already taken. Hashes the
     password for security.
     """
+    print("here1")
     if request.method == "POST":
+        print("here2")
         phoneNumber = request.form["PhoneNumber"]
         password = request.form["password"]
+        print(phoneNumber)
+        print(password)
         database = get_db()
         error = None
 
@@ -74,7 +78,10 @@ def register():
             #     (username, generate_password_hash(password)),
             # )
             # db.commit()
+            print('here3')
             database.session.add(Users(phonenum=phoneNumber, password=generate_password_hash(password)))
+            database.session.commit()
+            print('here')
             return redirect(url_for("auth.login"))
 
         flash(error)
@@ -86,22 +93,28 @@ def register():
 def login():
     """Log in a registered user by adding the user id to the session."""
     if request.method == "POST":
-        phoneNumber = request.form["phonenum"]
+        phoneNumber = request.form["PhoneNumber"]
         password = request.form["password"]
         database = get_db()
         error = None
-        user = Users.query.filter(Users.phonenum == phoneNumber).first()
+        print(phoneNumber)
+        print(password)
+        users = Users.query.filter(Users.phonenum == phoneNumber).first()
+       # users.password
+       #  print(users.password)
+       #  print(users.phonenum)
 
-        if user is None:
+        if users is None:
             error = "Incorrect username."
-        elif not check_password_hash(user["password"], password):
+        elif not check_password_hash(users.password, password):
             error = "Incorrect password."
 
         if error is None:
             # store the user id in a new session and return to the index
             session.clear()
-            session["user_id"] = user["id"]
-            return redirect(url_for("index"))
+            session["user_id"] = users.id
+            return "login ok"
+            #return redirect(url_for("index"))
 
         flash(error)
 
@@ -112,4 +125,5 @@ def login():
 def logout():
     """Clear the current session, including the stored user id."""
     session.clear()
-    return redirect(url_for("index"))
+    return "logout ok"
+    #return redirect(url_for("index"))

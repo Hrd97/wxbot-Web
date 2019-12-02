@@ -12,6 +12,7 @@ from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash
 from mod.models import Users
 from database import get_db
+#from wechat import bot
 from sqlalchemy import and_, or_
 
 
@@ -23,16 +24,14 @@ def login_required(view):
     def wrapped_view(**kwargs):
         if g.user is None:
             return redirect(url_for("auth.login"))
-
         return view(**kwargs)
-
     return wrapped_view
 
 
 @bp.before_app_request
 def load_logged_in_user():
-    """If a user id is stored in the session, load the user object from
-    the database into ``g.user``."""
+    """If a wechat id is stored in the session, load the wechat object from
+    the database into ``g.wechat``."""
     user_id = session.get("user_id")
 
     if user_id is None:
@@ -44,18 +43,17 @@ def load_logged_in_user():
 
 @bp.route("/register", methods=("GET", "POST"))
 def register():
-    """Register a new user.
+    """Register a new wechat.
 
     Validates that the username is not already taken. Hashes the
     password for security.
     """
-    print("here1")
+
     if request.method == "POST":
-        print("here2")
+
         phoneNumber = request.form["PhoneNumber"]
         password = request.form["password"]
-        print(phoneNumber)
-        print(password)
+
         database = get_db()
         error = None
 
@@ -64,7 +62,7 @@ def register():
         elif not password:
             error = "Password is required."
         elif (
-            # db.execute("SELECT id FROM user WHERE username = ?", (username,)).fetchone()
+            # db.execute("SELECT id FROM wechat WHERE username = ?", (username,)).fetchone()
             # is not None
             Users.query.filter(Users.phonenum == phoneNumber).first() is not None
         ):
@@ -74,14 +72,14 @@ def register():
             # the name is available, store it in the database and go to
             # the login page
             # db.execute(
-            #     "INSERT INTO user (username, password) VALUES (?, ?)",
+            #     "INSERT INTO wechat (username, password) VALUES (?, ?)",
             #     (username, generate_password_hash(password)),
             # )
             # db.commit()
-            print('here3')
+
             database.session.add(Users(phonenum=phoneNumber, password=generate_password_hash(password)))
             database.session.commit()
-            print('here')
+
             return redirect(url_for("auth.login"))
 
         flash(error)
@@ -91,7 +89,7 @@ def register():
 
 @bp.route("/login", methods=("GET", "POST"))
 def login():
-    """Log in a registered user by adding the user id to the session."""
+    """Log in a registered wechat by adding the wechat id to the session."""
     if request.method == "POST":
         phoneNumber = request.form["PhoneNumber"]
         password = request.form["password"]
@@ -110,20 +108,28 @@ def login():
             error = "Incorrect password."
 
         if error is None:
-            # store the user id in a new session and return to the index
+            # store the wechat id in a new session and return to the index
             session.clear()
             session["user_id"] = users.id
-            return "login ok"
-            #return redirect(url_for("index"))
+            #return render_template('wechat/index.html', alive=bot.alive, bot=bot)
+            #
+            return redirect(url_for('auth.userInterface', userid=users.id))
 
         flash(error)
 
     return render_template("auth/login.html")
 
+@bp.route("/user/<int:userid>")
+def userInterface(userid):
+    """Clear the current session, including the stored wechat id."""
+
+    return render_template("auth/user.html", userid=userid)
+
+
 
 @bp.route("/logout")
 def logout():
-    """Clear the current session, including the stored user id."""
+    """Clear the current session, including the stored wechat id."""
     session.clear()
     return "logout ok"
     #return redirect(url_for("index"))

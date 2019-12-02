@@ -1,2 +1,7 @@
 # Project exclude paths
 /venv/
+/wxbot/
+*.pkl
+*.sh
+*.sqlite
+*.db

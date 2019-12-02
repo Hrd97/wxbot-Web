@@ -1,6 +1,6 @@
 from database import db
 
-class msg(db.Model):
+class groupmsg(db.Model):
     __tablename__ = 'msg'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     groupName = db.Column(db.String(80), unique=True, nullable=False)

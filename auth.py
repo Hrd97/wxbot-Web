@@ -1,5 +1,4 @@
 import functools
-
 from flask import Blueprint
 from flask import flash
 from flask import g
@@ -10,10 +9,9 @@ from flask import session
 from flask import url_for
 from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash
-from mod.models import Users
+from models import Users
 from database import get_db
 #from wechat import bot
-from sqlalchemy import and_, or_
 
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")

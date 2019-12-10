@@ -20,7 +20,6 @@ class groupmsg(db.Model):
         return '<msg %r>' % self.message
 
 class Users(db.Model):
-
     __tablename__ = 'Users'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     phonenum = db.Column(db.String(12), unique=True, nullable=False)

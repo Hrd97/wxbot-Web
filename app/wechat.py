@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-from flask import Flask, render_template, redirect, Blueprint
-from threading import Thread
-from auth import login_required
+from flask import render_template, redirect, Blueprint
+from app.auth import login_required
 import itchat
 from itchat.content import *
 import base64
 from threading import Thread  # 多线程
-from time import sleep
-import os, sys, time, io, re
-import threading
-import logging
+import os, time
 import datetime
 
 
@@ -181,10 +177,3 @@ def logout():
         return "Error {0}".format(str(e))
 
 
-# if __name__ == '__main__':
-#     start_info = bot.load_login_status(dir_path + '/itchat.pkl')
-#     if start_info:
-#         thread = Thread(target=wechat_main, daemon=True, args=(start_info,))
-#         thread.start()
-#
-#     app.run(host='0.0.0.0', port=8080)

@@ -10,10 +10,12 @@ from flask import url_for
 from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash
 from models import Users
-#from wechat import bot
+from .database import db
+from .forms import LoginForm, RegisterForm
 
 
-bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 def login_required(view):
     """View decorator that redirects anonymous users to the login page."""
@@ -24,8 +26,7 @@ def login_required(view):
         return view(**kwargs)
     return wrapped_view
 
-
-@bp.before_app_request
+@auth_bp.before_app_request
 def load_logged_in_user():
     """If a wechat id is stored in the session, load the wechat object from
     the database into ``g.wechat``."""
@@ -36,24 +37,14 @@ def load_logged_in_user():
     else:
         g.user = Users.query.filter(Users.id == user_id).first()
 
-
-
-@bp.route("/register", methods=("GET", "POST"))
+@auth_bp.route("/register", methods=("GET", "POST"))
 def register():
-    """Register a new wechat.
 
-    Validates that the username is not already taken. Hashes the
-    password for security.
-    """
-
+    form = RegisterForm()
     if request.method == "POST":
-
-        phoneNumber = request.form["PhoneNumber"]
+        phoneNumber = request.form["phonenumber"]
         password = request.form["password"]
-
-        database = get_db()
         error = None
-
         if not phoneNumber:
             error = "phoneNumber is required."
         elif not password:
@@ -66,39 +57,28 @@ def register():
             error = "User {0} is already registered.".format(phoneNumber)
 
         if error is None:
-            # the name is available, store it in the database and go to
-            # the login page
-            # db.execute(
-            #     "INSERT INTO wechat (username, password) VALUES (?, ?)",
-            #     (username, generate_password_hash(password)),
-            # )
-            # db.commit()
-
-            database.session.add(Users(phonenum=phoneNumber, password=generate_password_hash(password)))
-            database.session.commit()
-
+            db.session.add(Users(phonenum=phoneNumber, password=generate_password_hash(password)))
+            db.session.commit()
             return redirect(url_for("auth.login"))
-
         flash(error)
 
-    return render_template("auth/register.html")
+    return render_template("auth/register.html", form=form)
 
-
-@bp.route("/login", methods=("GET", "POST"))
+@auth_bp.route("/login", methods=("GET", "POST"))
 def login():
     """Log in a registered wechat by adding the wechat id to the session."""
-    if request.method == "POST":
-        phoneNumber = request.form["PhoneNumber"]
+    form = LoginForm()
+    if form.validate_on_submit():
+        # flash('Login requested for OpenID="' + form.phonenumber.data + '", remember_me=' + form.password.data)
+        # print('Login requested for OpenID="' + form.phonenumber.data + '", remember_me=' + form.password.data)
+    #     return redirect('/index')
+    # if request.method == "POST":
+        phoneNumber = request.form["phonenumber"]
         password = request.form["password"]
-        database = get_db()
         error = None
-        print(phoneNumber)
-        print(password)
+        # print(phoneNumber)
+        # print(password)
         users = Users.query.filter(Users.phonenum == phoneNumber).first()
-       # users.password
-       #  print(users.password)
-       #  print(users.phonenum)
-
         if users is None:
             error = "Incorrect username."
         elif not check_password_hash(users.password, password):
@@ -109,22 +89,17 @@ def login():
             session.clear()
             session["user_id"] = users.id
             #return render_template('wechat/index.html', alive=bot.alive, bot=bot)
-            #
-            return redirect(url_for('auth.userInterface', userid=users.id))
-
+            return redirect(url_for('wechat.index'))
+            #return redirect(url_for('auth.userInterface', userid=users.id))
         flash(error)
+    return render_template("auth/login.html",form= form)
 
-    return render_template("auth/login.html")
-
-@bp.route("/user/<int:userid>")
+@auth_bp.route("/user/<int:userid>")
 def userInterface(userid):
     """Clear the current session, including the stored wechat id."""
-
     return render_template("auth/user.html", userid=userid)
 
-
-
-@bp.route("/logout")
+@auth_bp.route("/logout")
 def logout():
     """Clear the current session, including the stored wechat id."""
     session.clear()

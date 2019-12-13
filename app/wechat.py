@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-from flask import render_template, redirect, Blueprint
-from app.auth import login_required
+from flask import render_template, redirect, Blueprint,url_for
+
 import itchat
 from itchat.content import *
 import base64
 from threading import Thread  # 多线程
 import os, time
 import datetime
+from .auth import login_required
 
-
-bp = Blueprint("wechat", __name__)
+#bot = itchat.new_instance()
+wechat_bp = Blueprint("wechat", __name__)
 dir_path = os.path.dirname(os.path.realpath(__file__))
 bot = itchat.new_instance()
+
+thread = Thread()
 
 # def auto_add_member(msg, roomName):
 #     friend = bot.search_friends(userName=msg['FromUserName'])
@@ -62,6 +65,7 @@ def group_reply(msg):
 #     bot.send_msg('{} 你好！', newer['UserName'])
 
 
+
 def uptime(login_timestamp):
     if bot.alive:
         _uptime = datetime.datetime.now() - login_timestamp
@@ -85,7 +89,6 @@ def wechat_main(login_info):
             while not isLoggedIn:
                 status = bot.check_login()
                 waiting_time += 1
-
                 if status == '200':
                     isLoggedIn = True
                 elif status == '201':
@@ -102,7 +105,7 @@ def wechat_main(login_info):
         bot.show_mobile_login()
         bot.get_contact(True)
         bot.start_receiving()
-
+        print("1")
         bot.dump_login_status(dir_path + '/itchat.pkl')
         bot.hotReloadDir = dir_path + '/itchat.pkl'
 
@@ -113,8 +116,12 @@ def wechat_main(login_info):
     # remote_admin.send('[START] OK!')
     # report_thread = Thread(target=report_uptime, daemon=True, args=(remote_admin, login_timestamp,))
     # report_thread.start()
-
+    print("2")
     bot.run()
+    print("3")
+    # 到这里函数一直运行
+  #  redirect(url_for('wechat.userinterface'))
+
 
 
 # 将二维码转化为base64 string, 简单的使用了全局变量
@@ -127,27 +134,36 @@ def QR_to_b64(uuid, status, qrcode):
     return qr_b64
 
 
-#app = Flask(__name__)
-
-thread = Thread()
-
-
-@bp.route('/')
+@wechat_bp.route('/')
 @login_required
 def index():
     return render_template('wechat/index.html', alive=bot.alive, bot=bot)
 
 
+@wechat_bp.route('/userinterface')
+@login_required
+def userinterface():
+    if bot.alive :
+        return "ok"
+    else:
+        return redirect(url_for('wechat.wechat_login'))
+
+    #return render_template('wechat/user.html')
+
+
+
+
 # 生成二维码 登录
-@bp.route('/wechat_login')
+@wechat_bp.route('/wechat_login')
 @login_required
 def wechat_login():
     global thread
-
+    print("4")
     if bot.alive:
+        print("8")
         return redirect('/')
-
     if thread.is_alive():
+        print("9")
         return render_template('wechat/login.html', qr=qr_b64.decode('utf-8'), alive=bot.alive)
 
     bot.useHotReload = True
@@ -156,18 +172,20 @@ def wechat_login():
     if not info:
         bot.get_QRuuid()
         bot.get_QR(qrCallback=QR_to_b64)
-
     thread = Thread(target=wechat_main, daemon=True, args=(info,))
     thread.start()
-
+    print("5")
     if info:
+        print("6")
+        #return redirect(url_for('wechat.userinterface'))
         return redirect('/')
     else:
+        print("7")
         return render_template('wechat/login.html', qr=qr_b64.decode('utf-8'), alive=bot.alive)
-
+        #return redirect(url_for('wechat.userinterface'))
 
 # 登出
-@bp.route('/wechat_logout')
+@wechat_bp.route('/wechat_logout')
 @login_required
 def logout():
     try:

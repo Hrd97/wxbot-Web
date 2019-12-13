@@ -25,7 +25,7 @@ class Groupmsg(db.Model):
 class Users(db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    phonenum = db.Column(db.String(12), unique=True, nullable=False)
+    phonenum = db.Column(db.String(11), unique=True, nullable=False)
     password = db.Column(db.TEXT, nullable=False)
     msgrefer = db.relationship('Groupmsg', backref='user')
 

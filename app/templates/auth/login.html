@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% block header %}
+  <h1 >{% block title %}Log In{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+
+
+  <form method="post">
+      {{form.hidden_tag()}}
+  <div style="align-content: center">
+    <p>
+          {% for error in form.phonenumber.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+          {% endfor %}
+        <label for="password">手机号</label> <br>{{form.phonenumber}}
+        <br>
+{#        密  码: <br>{{form.password}}#}
+        <label for="password">密码</label> <br>
+        <input type="password" name="password" id="password" required>
+    </p>
+    <p>{{form.submit}} </p>
+   </div>
+  </form>
+
+{% endblock %}
+
+{#       {{ wtf.quick_form(form) }}#}
+{#    <p><input type="submit" value="Sign In"></p>#}
+{#    <label for="PhoneNumber">PhoneNumber</label>#}
+{#    <input name="PhoneNumber" id="PhoneNumber" required>#}
+{#    <label for="password">Password</label>#}
+{#    <input type="password" name="password" id="password" required>#}
+{#    <input type="submit" value="Log In">#}
